@@ -1,6 +1,6 @@
 #!/bin/bash
 
-python3 venv -m  pysus
+python3 -m venv pysus
 
 source pysus/bin/activate
 

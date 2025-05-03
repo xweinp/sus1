@@ -91,8 +91,7 @@ def make_size_clusters(images):
     for n_clusters in tqdm(range(2, 10)):
         ag = AgglomerativeClustering(
             n_clusters=n_clusters,
-            linkage='ward',
-            metric='euclidean'
+            linkage='ward'
         )
         y = ag.fit_predict(X_sizes)
         sil = silhouette_score(X_sizes, y)
@@ -139,7 +138,7 @@ def make_clusters(images, indexes):
     if n_components <= 1:
         # not enough samples
         if log: print("Putting all in one cluster")
-        return [[0 for i in range(n_samples)]] 
+        return [list(range(n_samples))]
 
 
     tr = LocallyLinearEmbedding(
@@ -170,7 +169,7 @@ def make_clusters(images, indexes):
     if max(sils) < 0:
         # all in one cluster
         if log: print("Putting all in one cluster")
-        return [[0 for i in range(n_samples)]] 
+        return [list(range(n_samples))]
     
     best_clusters = np.argmax(sils)
     model =clone(models[best_clusters])
