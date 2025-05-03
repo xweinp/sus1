@@ -1,0 +1,9 @@
+pandas==2.2.3
+numpy==2.2.0
+scikit-learn==1.6.0
+pillow==11.2.1
+matplotlib==3.10.0
+tqdm==4.67.0
+
+
+# TODO: verify which are useful
