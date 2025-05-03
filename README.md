@@ -1,58 +1,87 @@
-# Overview
+## Overview
 
-The way that I found to work best for this project is to perform the clustering twice:
+The approach that worked best for this project involves performing clustering in two stages:
 
-1. I cluster the images based only on sizees of the images
-2. I perform a separate clustering inside each of the size clusters
+1. **Initial Clustering by Image Size**  
+   First, I cluster the images based solely on their dimensions (width and height).
 
-This had to be done because I needed to extract features using nonlinear dimentionality reduction. The features that I want to extract are very different for big sins containg several characters and small cahracters like, eg. a dot.
+2. **Secondary Clustering within Each Size Cluster**  
+   Within each size-based cluster, I perform a second clustering based on image content.
 
-For the size clustering I went with agglomerative clustering using ward's method. 
+This two-step process is necessary because I extract features using nonlinear dimensionality reduction. The features I want to capture differ significantly between large images (which may contain multiple characters) and small ones (such as a single dot).
 
-I reduce the dimensionality inside of each cluster with LLE (locally linear embedding). The maximum nober of components is 20 though it may be smaller for very small clusters.
+For the initial size-based clustering, I use **Agglomerative Clustering** with **Ward's method**.
 
-For the second clustering I used KMeans with elkan algorithm. 
+Inside each size cluster:
+- I apply **Locally Linear Embedding (LLE)** for dimensionality reduction. The number of components is capped at 20, but may be lower for small clusters.
+- Then, I use **KMeans** with the **Elkan algorithm** for clustering.
 
-For all lustering I check a range of number of clusters I want to divide the data into. I use the silhouette score to determine the best number of clusters.
+For all clustering steps, I test a range of possible cluster counts and select the best using the **silhouette score**.
 
-I tested several approaches (without the size clustering, with PCA, UMAP, Isomap, ... as reduction methods and other clustering methods with different metrics). Some methods worked better with eg. small characters and were able to separate dots form commas very well, others worked better for many characters on one image. 
+I tested multiple alternatives (e.g., skipping size clustering, using PCA, UMAP, Isomap, and various clustering algorithms with different metrics). Some methods performed better on small characters—separating dots from commas well—while others worked better on images with multiple characters.
 
-This approch however works very well on single characters, quite well for 2 - character images, ok for dots, commas etc but is bad for big images with many characters. Unfortunatelly I didn't have time to make it work better :(
+This final approach performs very well on single characters, reasonably well on two-character images, and adequately on dots and commas. However, it performs poorly on large images with many characters. Unfortunately, I didn’t have time to improve that part.
 
-So finally I ended up with:
-- using <<AgglomerativeClustering >> with best number of clusters from range [2, 10) selected using silhouette score
-- On each cluster:
-    - I apply transformatinos to the images (put them on grayscle, ivert so that 0 is white and 255 is black, pad to the same size and move them  so that the center of image (calculated with assuming pixels can be only white if pixel = 0 or black if pixel > 0) is in the center of space
-    - reduce the dimensionality with <<LocallyLinearEmbedding>> with n_components = min(max_x * max_y, 20, n_samples - 1), where max_x and max_y are the maximum width and height of the images in the cluster. I set n_neighbors = min(10, n_components)
-    - use <<KMeans>> with elkan algorith and best number of clusters from range [2, min(n_samples, 80)) selected using silhouette score
+### Final Pipeline
 
-# Performance
+- Use `AgglomerativeClustering` with the best number of clusters selected from the range [2, 10), based on the silhouette score.
+- For each size-based cluster:
+  - Convert images to grayscale.
+  - Invert so that white = 0 and black = 255.
+  - Pad to a uniform size and center the content (assuming pixels are white if pixel = 0, black otherwise).
+  - Apply `LocallyLinearEmbedding` with  
+    `n_components = min(max_x * max_y, 20, n_samples - 1)`  
+    where `max_x` and `max_y` are the maximum width and height of images in the cluster.  
+    Set `n_neighbors = min(10, n_components)`.
+  - Run `KMeans` with the Elkan algorithm, selecting the best number of clusters from the range `[2, min(n_samples, 80))`, using the silhouette score.
 
-On my PC (Ryzen 5 8400f, 16GB RAM) the programme runs pretty fast. 
+## Performance
 
-For the 7600 images provided it task description: 
-- size clustering takes < 10 seconds
-- final clustering takes up to 30 seconds per size cluster, but it strongly depends on the number ofimages in that cluster.
-- the whole process takes less than a minute
+On my PC (Ryzen 5 8400f, 16GB RAM), the program runs efficiently.
 
-# Usage
+For the 7,600 images provided in the task description:
+- Size clustering takes less than 10 seconds.
+- Final clustering takes up to 30 seconds per size cluster, depending on the number of images.
+- The whole process completes in under one minute.
 
-To run the code you need to first make the virtual environment. To do taht you have to run:
-```bash
-./make_env.sh
-```
-On some systems you may need to run:
+## Usage
+
+
+To run the code, first create a virtual environment.
+
+On some systems, you may need to make the script executable first:
+
 ```bash
 chmod +x make_env.sh
 ```
 
-Then you can run the code with:
+To create the virtual environment and install all necessary libraries, run:
+
+```bash
+./make_env.sh
+```
+
+
+Then run the program with:
+
 ```bash
 python3 prog.py <path_to_file>
 ```
-where <path_to_file> is the path to the file containing paths to images.
 
-You can also enable the logging by setting <log> to <True> at the top of <prog.py>.
+Where `<path_to_file>` is the path to a file containing the image paths.
 
-The results are saved in the <results> directory. The programme creates the directory by itself. The directory is created if it does not exist. If the directory already contains files they will be overwritten. Files other than <clusters.txt> and <clusters.html> won't be affected.
+To enable logging, set `log = True` at the top of `prog.py`.
+
+The results are saved in the `results` directory. The program will create this directory if it does not exist. If it already exists, only `clusters.txt` and `clusters.html` will be overwritten. Other files will not be affected.
+
+
+## Example
+
+```bash
+chmod +x make_env.sh
+./make_env.sh
+python3 prog.py ./example_set/list.txt
+```
+
+Now you can find clusters in the `results` directory!
 

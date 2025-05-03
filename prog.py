@@ -17,7 +17,7 @@ def clusters_to_files(clusters):
     
     if not os.path.exists('./results'):
         os.makedirs('./results')
-        
+
     # text file:
 
     with open('./results/clusters.txt', 'w') as f:
@@ -31,8 +31,8 @@ def clusters_to_files(clusters):
     with open('./results/clusters.html', 'w') as f:
         for cluster in clusters:
             for name in cluster:
-                f.write(f"<img src='{name}'>")
-            f.write("<HR>")
+                f.write(f"<img src='{name}'>\n")
+            f.write("<HR>\n")
 
     if log: print("Clusters saved to clusters.txt and clusters.html")
 
