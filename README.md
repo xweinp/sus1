@@ -44,12 +44,14 @@ For the 7,600 images provided in the task description:
 - Final clustering takes up to 30 seconds per size cluster, depending on the number of images.
 - The whole process completes in under one minute.
 
+On the students.mimuw server the whole process takes abut 11 minutes (should be much faster for 5k images).
+
 ## Usage
 
 
 To run the code, first create a virtual environment.
 
-On some systems, you may need to make the script executable first:
+You need to make the script executable first:
 
 ```bash
 chmod +x make_env.sh
@@ -61,6 +63,11 @@ To create the virtual environment and install all necessary libraries, run:
 ./make_env.sh
 ```
 
+Now you can activate the virtual environment with:
+
+```bash
+source pysus/bin/activate
+```
 
 Then run the program with:
 
@@ -80,6 +87,7 @@ The results are saved in the `results` directory. The program will create this d
 ```bash
 chmod +x make_env.sh
 ./make_env.sh
+source pysus/bin/activate
 python3 prog.py ./example_set/list.txt
 ```
 
