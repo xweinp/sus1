@@ -46,7 +46,7 @@ For the 7,600 images provided in the task description:
 
 On the students.mimuw server the whole process takes abut 11 minutes (should be much faster for 5k images).
 
-## Usage
+## How to Run
 
 
 To run the code, first create a virtual environment.
