@@ -1,44 +1,47 @@
 import os, sys
 import numpy as np
 from PIL import Image, ImageOps
-
+from tqdm import tqdm
 
 from sklearn.manifold import LocallyLinearEmbedding
 from sklearn.cluster import KMeans, AgglomerativeClustering
 from sklearn.metrics import silhouette_score
+from sklearn.base import clone
 
 
-def clusters_to_files(y, names):
-    clusters = {}
-    for i, name in enumerate(names):
-        yi = int(y[i])
-        if yi not in clusters:
-            clusters[yi] = []
-        clusters[yi].append(name)
+log = False
 
+tqdm = tqdm if log else lambda x: x
+
+def clusters_to_files(clusters):
+    
+    if not os.path.exists('./results'):
+        os.makedirs('./results')
+        
     # text file:
 
-    with open('clusters.txt', 'w') as f:
+    with open('./results/clusters.txt', 'w') as f:
         for cluster in clusters:
-            for name in clusters[cluster]:
-                f.write(f"{name} ")
+            for name in cluster:
+                f.write(os.path.basename(name) + " ")
             f.write("\n")
     
     # html file:
 
-    with open('clusters.html', 'w') as f:
+    with open('./results/clusters.html', 'w') as f:
         for cluster in clusters:
-            for name in clusters[cluster]:
-                f.write(f"<img src='training_samples/{name}'>")
+            for name in cluster:
+                f.write(f"<img src='{name}'>")
             f.write("<HR>")
 
-    print("Clusters saved to clusters.txt and clusters.html")
+    if log: print("Clusters saved to clusters.txt and clusters.html")
+
+
 
 def center_image_by_centroid(img):
     img = img.astype(float)
     h, w = img.shape
 
-    # Zamiana obrazu na binarny: 1 dla pikseli > 0, 0 dla pozostałych
     binary_img = (img > 0).astype(float)
 
     y, x = np.indices((h, w))
@@ -47,7 +50,6 @@ def center_image_by_centroid(img):
     if total == 0:
         return img.copy()
 
-    # Obliczenie centroidu na podstawie binarnego obrazu
     cx = (x * binary_img).sum() / total
     cy = (y * binary_img).sum() / total
 
@@ -76,59 +78,20 @@ def center_image_by_centroid(img):
 def sizes_np(image):
     return np.array(image.shape, dtype=np.float32)
 
-def metric_sz(X, squared=False):
-    X = np.asarray(X, dtype=np.float32)
-    
-    l = X[:, None, :]
-    lj = X[None, :, :]
-    
-    r = np.maximum(l, lj) / np.minimum(l, lj)
-    R = np.prod(r, axis=2)
-    
-    return R
-
-def transform_image(image, max_x, max_y):
-    pad_x = max_x - image.shape[0]
-    pad_y = max_y - image.shape[1]
-    # pad with white pixels (0)
-    # add information about the number of pixels
-    extra_features = np.array([
-        image.shape[0],
-        image.shape[1],
-        # np.sum(np.any(image > 10, axis=0))
-        # image.shape[0] * image.shape[1]
-        # 
-    ], dtype=np.float32)
-
-    image = np.pad(
-        image,
-        ((0, pad_x), (0, pad_y)),
-        mode='constant',
-        constant_values=0
-    )
-
-    # center image by centroid
-    image = center_image_by_centroid(image)
-
-    image = image.flatten()
-    return image.astype(np.float32), extra_features
-
 
 
 def make_size_clusters(images):
-    max_x = max([image.shape[0] for image in images])
-    max_y = max([image.shape[1] for image in images])
-
+    if log: print("Clustering by size...")
     X_sizes = [sizes_np(image) for image in images]
     X_sizes = np.array(X_sizes)
 
     sils = []
     ags = []
 
-    for n_clusters in range(2, 10):
+    for n_clusters in tqdm(range(2, 10)):
         ag = AgglomerativeClustering(
             n_clusters=n_clusters,
-            method='ward',
+            linkage='ward',
             metric='euclidean'
         )
         y = ag.fit_predict(X_sizes)
@@ -139,11 +102,17 @@ def make_size_clusters(images):
 
     best_clusters = np.argmax(sils)
     ag = ags[best_clusters]
-    size_clusters = ag.fit_predict(X_sizes)
+    y = ag.fit_predict(X_sizes)
+    size_clusters = []
+    for i in range(best_clusters + 2):
+        size_clusters.append(np.where(y == i)[0])
+
+    if log: print("Number of size clusters:", len(size_clusters))
 
     return size_clusters
 
-def make_clusters(images, image_names):
+def make_clusters(images, indexes):
+    if log: print("Clustering by content...")
     max_x = max([image.shape[0] for image in images])
     max_y = max([image.shape[1] for image in images])
 
@@ -158,8 +127,8 @@ def make_clusters(images, image_names):
         return image.flatten()
     
     X = [
-        make_row(image)
-        for image in images
+        make_row(images[i])
+        for i in indexes
     ]
 
     X = np.array(X, dtype=np.float32)
@@ -169,84 +138,88 @@ def make_clusters(images, image_names):
 
     if n_components <= 1:
         # not enough samples
-        return [{
-            'cluster': 0,
-            'name': name
-        } for name in image_names]
+        if log: print("Putting all in one cluster")
+        return [[0 for i in range(n_samples)]] 
 
 
     tr = LocallyLinearEmbedding(
         n_components=n_components,
-        n_neighbors=10
+        n_neighbors=min(n_components, 10)
     )
 
     X = tr.fit_transform(X)
 
     min_cl, max_cl = 2, min(n_samples, 80)
     sils = []
-    ags = []
+    models = []
 
-    # TODO: wypróbuj kilk arózńych algorytmów klasteryzacji (w koncu po cos jest te 10 minut...)
+    def add_model(model):
+        y = model.fit_predict(X)
+        sil = silhouette_score(X, y)
+        sils.append(sil)
+        models.append(model)
 
-    for i in range(min_cl, max_cl):
-        ag = KMeans(n_clusters=i, algorithm='elkan')
-        y = ag.fit_predict(X)
-
-        sils.append(silhouette_score(X, y))
-        ags.append(ag)
-
+    for n_clusters in range(min_cl, max_cl):
+        add_model(KMeans(
+            n_clusters=n_clusters, 
+            algorithm='elkan',
+            max_iter=1000
+        ))
+        
+        
     if max(sils) < 0:
         # all in one cluster
-        return [{
-            'cluster': 0,
-            'name': name
-        } for name in image_names]
-    
+        if log: print("Putting all in one cluster")
+        return [[0 for i in range(n_samples)]] 
     
     best_clusters = np.argmax(sils)
-    ag = ags[best_clusters]
-    y = ag.fit_predict(X)
+    model =clone(models[best_clusters])
+    y = model.fit_predict(X)
 
-    return y
+    n_labels = len(np.unique(y))
+    clusters = [np.where(y == i)[0] for i in range(n_labels)]
+    clusters = [[indexes[i] for i in cluster] for cluster in clusters]
 
+    if log: print("Number of clusters:", n_labels)
+    return clusters
 
 
 
 def main():
     file = sys.argv[1]
 
+    if log: print("Reading image paths from:", file)
+
     with open(file, 'r') as f:
         image_names = f.readlines()
+        image_names = [name.strip() for name in image_names]
     
     images = []
-    extra_features = []
 
     for filename in image_names:
         image = Image.open(filename)
         image = ImageOps.grayscale(image)
-        image = image.invert() # I want 0 to be white
-        image = np.array(image)
+        image = ImageOps.invert(image) # I want 0 to be white
+        image = np.array(image) / 255.0
         images.append(image)
 
     # First I cluster the images by size.
     # Then I will perform clustering in each size cluster.
     size_clusters = make_size_clusters(images)
-    
-    n_clusters = 0
-    save_clusters = []
-    save_names = []
 
-    for cluster in size_clusters:
-        cluster_images = [images[i] for i in range(len(images)) if size_clusters[i] == cluster]
-        cluster_names = [image_names[i] for i in range(len(images)) if size_clusters[i] == cluster]
+    result_clusters = []
 
+    for cluster in tqdm(size_clusters):
         # Now I will perform clustering in each size cluster.
-        new_clusters = make_clusters(cluster_images, cluster_names)
-        save_clusters += [i + n_clusters for i in new_clusters]
-        n_clusters += len(set(new_clusters))
-        save_names += cluster_names
+        new_clusters = make_clusters(images, cluster)
+        result_clusters.extend(new_clusters)
 
-    clusters_to_files(save_clusters, save_names)
+    result_clusters = [
+        [image_names[i] for i in cluster]
+        for cluster in result_clusters
+    ]
+    if log: print("Final number of clusters:", len(result_clusters))
+    clusters_to_files(result_clusters)
 
 if __name__ == "__main__":
     main()
