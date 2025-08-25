@@ -1,3 +1,7 @@
+## Clustering Handwritten Characters
+
+This is a clustering problem I solved as part of the "Machine Learning" course at the University of Warsaw. The task was to cluster images of handwritten characters, which could include digits, letters, punctuation marks, and other symbols. The images varied in size and quality, and some contained multiple characters. I don't include the dataset here because I don't know if I have the right to share it.
+
 ## Overview
 
 The approach that worked best for this project involves performing clustering in two stages:

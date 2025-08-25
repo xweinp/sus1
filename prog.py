@@ -19,7 +19,6 @@ def clusters_to_files(clusters):
         os.makedirs('./results')
 
     # text file:
-
     with open('./results/clusters.txt', 'w') as f:
         for cluster in clusters:
             for name in cluster:
@@ -27,7 +26,6 @@ def clusters_to_files(clusters):
             f.write("\n")
     
     # html file:
-
     with open('./results/clusters.html', 'w') as f:
         for cluster in clusters:
             for name in cluster:
@@ -77,8 +75,6 @@ def center_image_by_centroid(img):
 
 def sizes_np(image):
     return np.array(image.shape, dtype=np.float32)
-
-
 
 def make_size_clusters(images):
     if log: print("Clustering by size...")

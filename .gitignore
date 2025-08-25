@@ -1,3 +1,5 @@
 pysus
 .vscode
 __pycache__
+example_set/*
+results/*
